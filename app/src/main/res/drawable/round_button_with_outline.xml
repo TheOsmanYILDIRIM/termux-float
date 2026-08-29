@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Apple Liquid Glass Floating Orb Background -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <gradient
+                android:angle="270"
+                android:startColor="#F01E293B"
+                android:centerColor="#F00F172A"
+                android:endColor="#F0020617"
+                android:type="linear" />
+            <stroke
+                android:width="2dp"
+                android:color="#8038BDF8" />
+        </shape>
+    </item>
     <item>
         <shape android:shape="oval">
-            <solid android:color="@android:color/black" />
-            <stroke android:color="@android:color/white"
-                android:width="@dimen/bubble_outline_stroke_width" />
+            <gradient
+                android:angle="270"
+                android:startColor="#EA1E293B"
+                android:centerColor="#E60F172A"
+                android:endColor="#EA030712"
+                android:type="linear" />
+            <stroke
+                android:width="@dimen/bubble_outline_stroke_width"
+                android:color="#50FFFFFF" />
         </shape>
     </item>
 </selector>

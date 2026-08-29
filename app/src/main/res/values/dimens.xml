@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="bubble_outline_stroke_width">1dp</dimen>
+    <dimen name="bubble_outline_stroke_width">1.5dp</dimen>
+    <dimen name="glass_window_corner_radius">20dp</dimen>
+    <dimen name="glass_header_height">38dp</dimen>
+    <dimen name="glass_button_size">28dp</dimen>
+    <dimen name="glass_resize_handle_size">32dp</dimen>
 </resources>

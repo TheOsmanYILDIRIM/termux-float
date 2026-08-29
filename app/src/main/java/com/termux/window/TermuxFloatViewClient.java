@@ -61,13 +61,8 @@ public class TermuxFloatViewClient extends TermuxTerminalViewClientBase {
 
     @Override
     public boolean onLongPress(MotionEvent event) {
-        mView.updateLongPressMode(true);
-        mView.getLocationOnScreen(mView.location);
-        mView.initialX = mView.location[0];
-        mView.initialY = mView.location[1];
-        mView.initialTouchX = event.getRawX();
-        mView.initialTouchY = event.getRawY();
-        return true;
+        // Return false so TerminalView handles long-press for copy, paste, and text selection
+        return false;
     }
 
     @Override

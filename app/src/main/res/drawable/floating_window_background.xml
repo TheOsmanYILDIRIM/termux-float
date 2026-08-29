@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Background for the window, used to draw a border -->
+<!-- Dark Liquid Glass background for the floating window -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle" >
+    android:shape="rectangle">
+    <corners android:radius="@dimen/glass_window_corner_radius" />
+    <solid android:color="#E610141E" />
     <stroke
-        android:width="1px"
-        android:color="@android:color/white" />
-    <solid android:color="#FF000000" />
+        android:width="1.2dp"
+        android:color="#40FFFFFF" />
 </shape>

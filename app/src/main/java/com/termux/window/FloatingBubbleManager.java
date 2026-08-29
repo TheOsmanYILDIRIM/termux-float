@@ -96,8 +96,8 @@ public class FloatingBubbleManager {
         terminalView.setClipToOutline(false);
 
         TermuxFloatView termuxFloatView = getTermuxFloatView();
-        termuxFloatView.setBackground(mOriginalFloatViewBackground);
-        termuxFloatView.setClipToOutline(false);
+        termuxFloatView.setBackground(mOriginalFloatViewBackground != null ? mOriginalFloatViewBackground : termuxFloatView.getContext().getDrawable(R.drawable.floating_window_background));
+        termuxFloatView.setupGlassOutline();
 
         ViewGroup windowControls = termuxFloatView.findViewById(R.id.window_controls);
         windowControls.setVisibility(View.VISIBLE);

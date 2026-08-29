@@ -1,48 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.termux.window.TermuxFloatView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/window_layout"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:background="@drawable/floating_window_background"
     android:orientation="vertical"
-    android:padding="1px" >
+    android:padding="2dp">
 
+    <!-- iOS 26 Control Center Capsule Header -->
     <LinearLayout
         android:id="@+id/window_controls"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#ff333333">
-        <Button
-            android:id="@+id/minimize_button"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:background="@drawable/ic_minimize_icon"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp" />
+        android:layout_height="@dimen/glass_header_height"
+        android:gravity="center_vertical"
+        android:background="@drawable/floating_window_header_bg"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp">
+
+        <TextView
+            android:id="@+id/header_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚡ Termux:Float"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginEnd="6dp" />
+
         <Space
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
-        <Button
+
+        <ImageButton
+            android:id="@+id/keyboard_button"
+            android:layout_width="@dimen/glass_button_size"
+            android:layout_height="@dimen/glass_button_size"
+            android:background="@drawable/btn_glass_blue"
+            android:src="@drawable/ic_keyboard_icon"
+            android:scaleType="fitCenter"
+            android:padding="5dp"
+            android:contentDescription="Keyboard"
+            android:layout_marginEnd="8dp" />
+
+        <ImageButton
+            android:id="@+id/minimize_button"
+            android:layout_width="@dimen/glass_button_size"
+            android:layout_height="@dimen/glass_button_size"
+            android:background="@drawable/btn_glass_amber"
+            android:src="@drawable/ic_glass_minimize"
+            android:scaleType="fitCenter"
+            android:padding="5dp"
+            android:contentDescription="Minimize"
+            android:layout_marginEnd="8dp" />
+
+        <ImageButton
             android:id="@+id/exit_button"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:background="@drawable/ic_exit_icon"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"/>
+            android:layout_width="@dimen/glass_button_size"
+            android:layout_height="@dimen/glass_button_size"
+            android:background="@drawable/btn_glass_red"
+            android:src="@drawable/ic_glass_exit"
+            android:scaleType="fitCenter"
+            android:padding="5dp"
+            android:contentDescription="Exit" />
     </LinearLayout>
 
-    <com.termux.view.TerminalView
-        android:id="@+id/terminal_view"
+    <!-- Terminal Container with Bottom-Left Corner Resize Handle -->
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:scrollbars="vertical" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <com.termux.view.TerminalView
+            android:id="@+id/terminal_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:scrollbars="vertical" />
+
+        <!-- Sol alt köşede boyutlandırma butonu -->
+        <ImageButton
+            android:id="@+id/resize_button_left"
+            android:layout_width="@dimen/glass_resize_handle_size"
+            android:layout_height="@dimen/glass_resize_handle_size"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
+            android:background="@drawable/btn_glass_resize"
+            android:src="@drawable/ic_resize_handle"
+            android:scaleType="fitCenter"
+            android:padding="6dp"
+            android:contentDescription="Resize Window" />
+
+    </RelativeLayout>
 
 </com.termux.window.TermuxFloatView>

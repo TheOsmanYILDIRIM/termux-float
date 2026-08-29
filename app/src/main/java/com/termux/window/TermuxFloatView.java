@@ -3,24 +3,25 @@ package com.termux.window;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Outline;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
-import android.view.ScaleGestureDetector.OnScaleGestureListener;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.settings.preferences.TermuxFloatAppSharedPreferences;
 import com.termux.shared.view.KeyboardUtils;
+import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -29,9 +30,9 @@ import com.termux.window.settings.properties.TermuxFloatAppSharedProperties;
 
 public class TermuxFloatView extends LinearLayout {
 
-    public static final float ALPHA_FOCUS = 0.9f;
-    public static final float ALPHA_NOT_FOCUS = 0.7f;
-    public static final float ALPHA_MOVING = 0.5f;
+    public static final float ALPHA_FOCUS = 0.95f;
+    public static final float ALPHA_NOT_FOCUS = 0.8f;
+    public static final float ALPHA_MOVING = 0.65f;
 
     private int DISPLAY_WIDTH, DISPLAY_HEIGHT;
 
@@ -65,52 +66,27 @@ public class TermuxFloatView extends LinearLayout {
     private TermuxFloatAppSharedProperties mProperties;
 
     private boolean withFocus = true;
-    int initialX;
-    int initialY;
-    float initialTouchX;
-    float initialTouchY;
-
-    boolean isInLongPressState;
 
     final int[] location = new int[2];
-
     final int[] windowControlsLocation = new int[2];
 
     private static final String LOG_TAG = "TermuxFloatView";
 
-    final ScaleGestureDetector mScaleDetector = new ScaleGestureDetector(getContext(), new OnScaleGestureListener() {
-        private static final int MIN_SIZE = 50;
-
-        @Override
-        public boolean onScaleBegin(ScaleGestureDetector detector) {
-            return true;
-        }
-
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            int widthChange = (int) (detector.getCurrentSpanX() - detector.getPreviousSpanX());
-            int heightChange = (int) (detector.getCurrentSpanY() - detector.getPreviousSpanY());
-            layoutParams.width += widthChange;
-            layoutParams.height += heightChange;
-            layoutParams.width = Math.max(MIN_SIZE, layoutParams.width);
-            layoutParams.height = Math.max(MIN_SIZE, layoutParams.height);
-            mWindowManager.updateViewLayout(TermuxFloatView.this, layoutParams);
-            if (mPreferences != null) {
-                mPreferences.setWindowWidth(layoutParams.width);
-                mPreferences.setWindowHeight(layoutParams.height);
-            }
-            return true;
-        }
-
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-            // Do nothing.
-        }
-    });
-
     public TermuxFloatView(Context context, AttributeSet attrs) {
         super(context, attrs);
         setAlpha(ALPHA_FOCUS);
+        setupGlassOutline();
+    }
+
+    public void setupGlassOutline() {
+        final float cornerRadiusPx = ViewUtils.dpToPx(getContext(), 20);
+        setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), cornerRadiusPx);
+            }
+        });
+        setClipToOutline(true);
     }
 
     private static int computeLayoutFlags(boolean withFocus) {
@@ -128,7 +104,6 @@ public class TermuxFloatView extends LinearLayout {
         mProperties = new TermuxFloatAppSharedProperties(getContext());
 
         // Load termux float shared preferences
-        // This will also fail if TermuxConstants.TERMUX_FLOAT_PACKAGE_NAME does not equal applicationId
         mPreferences = TermuxFloatAppSharedPreferences.build(getContext(), true);
         if (mPreferences == null) {
             return;
@@ -145,15 +120,129 @@ public class TermuxFloatView extends LinearLayout {
         initWindowControls();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void initWindowControls() {
         mWindowControls = findViewById(R.id.window_controls);
-        mWindowControls.setOnClickListener(v -> changeFocus(true));
 
-        Button minimizeButton = findViewById(R.id.minimize_button);
-        minimizeButton.setOnClickListener(v -> mFloatingBubbleManager.toggleBubble());
+        // Header Touch Listener for moving the floating window
+        mWindowControls.setOnTouchListener(new OnTouchListener() {
+            private int initialX, initialY;
+            private float initialTouchX, initialTouchY;
 
-        Button exitButton = findViewById(R.id.exit_button);
-        exitButton.setOnClickListener(v -> exit());
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        changeFocus(true);
+                        initialX = layoutParams.x;
+                        initialY = layoutParams.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        setAlpha(ALPHA_MOVING);
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        int deltaX = (int) (event.getRawX() - initialTouchX);
+                        int deltaY = (int) (event.getRawY() - initialTouchY);
+                        layoutParams.x = Math.max(0, Math.min(initialX + deltaX, DISPLAY_WIDTH - layoutParams.width));
+                        layoutParams.y = Math.max(0, Math.min(initialY + deltaY, DISPLAY_HEIGHT - layoutParams.height));
+                        if (getWindowToken() != null)
+                            mWindowManager.updateViewLayout(TermuxFloatView.this, layoutParams);
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        setAlpha(withFocus ? ALPHA_FOCUS : ALPHA_NOT_FOCUS);
+                        if (mPreferences != null) {
+                            mPreferences.setWindowX(layoutParams.x);
+                            mPreferences.setWindowY(layoutParams.y);
+                        }
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        // Sol alt köşedeki boyutlandırma butonu (Bottom-left resize handle)
+        View resizeButton = findViewById(R.id.resize_button_left);
+        if (resizeButton != null) {
+            resizeButton.setOnTouchListener(new OnTouchListener() {
+                private int initialX, initialY, initialWidth, initialHeight;
+                private float initialTouchX, initialTouchY;
+                private final int MIN_WIDTH = (int) ViewUtils.dpToPx(getContext(), 160);
+                private final int MIN_HEIGHT = (int) ViewUtils.dpToPx(getContext(), 120);
+
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            changeFocus(true);
+                            initialX = layoutParams.x;
+                            initialY = layoutParams.y;
+                            initialWidth = layoutParams.width;
+                            initialHeight = layoutParams.height;
+                            initialTouchX = event.getRawX();
+                            initialTouchY = event.getRawY();
+                            setAlpha(ALPHA_MOVING);
+                            setBackgroundResource(R.drawable.floating_window_background_resize);
+                            return true;
+
+                        case MotionEvent.ACTION_MOVE:
+                            int deltaX = (int) (event.getRawX() - initialTouchX);
+                            int deltaY = (int) (event.getRawY() - initialTouchY);
+
+                            // Sol alt köşeden çekerken: sola çekmek (deltaX < 0) genişliği artırır, X'i sola kaydırır
+                            int newWidth = initialWidth - deltaX;
+                            int newHeight = initialHeight + deltaY;
+
+                            newWidth = Math.max(MIN_WIDTH, Math.min(newWidth, DISPLAY_WIDTH));
+                            newHeight = Math.max(MIN_HEIGHT, Math.min(newHeight, DISPLAY_HEIGHT));
+
+                            int newX = initialX + (initialWidth - newWidth);
+                            newX = Math.max(0, Math.min(newX, DISPLAY_WIDTH - newWidth));
+
+                            layoutParams.x = newX;
+                            layoutParams.width = newWidth;
+                            layoutParams.height = newHeight;
+
+                            if (getWindowToken() != null)
+                                mWindowManager.updateViewLayout(TermuxFloatView.this, layoutParams);
+                            return true;
+
+                        case MotionEvent.ACTION_UP:
+                        case MotionEvent.ACTION_CANCEL:
+                            setBackgroundResource(R.drawable.floating_window_background);
+                            setAlpha(withFocus ? ALPHA_FOCUS : ALPHA_NOT_FOCUS);
+                            if (mPreferences != null) {
+                                mPreferences.setWindowX(layoutParams.x);
+                                mPreferences.setWindowY(layoutParams.y);
+                                mPreferences.setWindowWidth(layoutParams.width);
+                                mPreferences.setWindowHeight(layoutParams.height);
+                            }
+                            return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // Klavye Aç/Kapa Butonu
+        ImageButton keyboardButton = findViewById(R.id.keyboard_button);
+        if (keyboardButton != null) {
+            keyboardButton.setOnClickListener(v -> KeyboardUtils.toggleSoftKeyboard(getContext()));
+        }
+
+        // Minimize Butonu
+        ImageButton minimizeButton = findViewById(R.id.minimize_button);
+        if (minimizeButton != null) {
+            minimizeButton.setOnClickListener(v -> mFloatingBubbleManager.toggleBubble());
+        }
+
+        // Exit Butonu
+        ImageButton exitButton = findViewById(R.id.exit_button);
+        if (exitButton != null) {
+            exitButton.setOnClickListener(v -> exit());
+        }
     }
 
     @Override
@@ -206,102 +295,43 @@ public class TermuxFloatView extends LinearLayout {
     }
 
     /**
-     * Intercept touch events to obtain and loose focus on touch events.
+     * Intercept touch events to manage window focus without interfering with text selection.
      */
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        if (isInLongPressState) return true;
-
         getLocationOnScreen(location);
         int x = location[0];
         int y = location[1];
         float touchX = event.getRawX();
         float touchY = event.getRawY();
 
-        if (didClickInsideWindowControls(touchX, touchY)) {
-            // avoid unintended focus event if we are tapping on our window controls
-            // so that keyboard doesn't possibly show briefly
-            return false;
-        }
-
         boolean clickedInside = (touchX >= x) && (touchX <= (x + layoutParams.width)) && (touchY >= y) && (touchY <= (y + layoutParams.height));
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                if (!clickedInside) changeFocus(false);
-                break;
-            case MotionEvent.ACTION_UP:
-                if (clickedInside) {
+                if (!clickedInside) {
+                    changeFocus(false);
+                } else if (!withFocus) {
                     changeFocus(true);
-                    showTouchKeyboard();
                 }
                 break;
         }
         return false;
     }
 
-    private boolean didClickInsideWindowControls(float touchX, float touchY) {
-        if (mWindowControls.getVisibility() == View.GONE) {
-            return false;
-        }
-        mWindowControls.getLocationOnScreen(windowControlsLocation);
-        int controlsX = windowControlsLocation[0];
-        int controlsY = windowControlsLocation[1];
-
-        return (touchX >= controlsX && touchX <= controlsX + mWindowControls.getWidth()) &&
-                (touchY >= controlsY && touchY <= controlsY + mWindowControls.getHeight());
-    }
-
     void showTouchKeyboard() {
         mTerminalView.post(() -> KeyboardUtils.showSoftKeyboard(getContext(), mTerminalView));
-
     }
 
     void hideTouchKeyboard() {
         mTerminalView.post(() -> KeyboardUtils.hideSoftKeyboard(getContext(), mTerminalView));
     }
 
-    void updateLongPressMode(boolean newValue) {
-        isInLongPressState = newValue;
-        mFloatingBubbleManager.updateLongPressBackgroundResource(isInLongPressState);
-        setAlpha(newValue ? ALPHA_MOVING : (withFocus ? ALPHA_FOCUS : ALPHA_NOT_FOCUS));
-        if (newValue && !mFloatingBubbleManager.isMinimized())
-            Logger.showToast(getContext(), getContext().getString(R.string.after_long_press), false);
-    }
-
-    /**
-     * Motion events should only be dispatched here when {@link #onInterceptTouchEvent(MotionEvent)} returns true.
-     */
-    @SuppressLint("ClickableViewAccessibility")
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (isInLongPressState) {
-            mScaleDetector.onTouchEvent(event);
-            if (mScaleDetector.isInProgress()) return true;
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_MOVE:
-                    layoutParams.x = Math.min(DISPLAY_WIDTH - layoutParams.width, Math.max(0, initialX + (int) (event.getRawX() - initialTouchX)));
-                    layoutParams.y = Math.min(DISPLAY_HEIGHT - layoutParams.height, Math.max(0, initialY + (int) (event.getRawY() - initialTouchY)));
-                    mWindowManager.updateViewLayout(TermuxFloatView.this, layoutParams);
-                    if (mPreferences != null) {
-                        mPreferences.setWindowX(layoutParams.x);
-                        mPreferences.setWindowY(layoutParams.y);
-                    }
-                    break;
-                case MotionEvent.ACTION_UP:
-                    updateLongPressMode(false);
-                    break;
-            }
-            return true;
-        }
-        return super.onTouchEvent(event);
-    }
-
     /**
      * Visually indicate focus and show the soft input as needed.
      */
     void changeFocus(boolean newFocus) {
-        if (newFocus && mFloatingBubbleManager.isMinimized()) {
+        if (newFocus && mFloatingBubbleManager != null && mFloatingBubbleManager.isMinimized()) {
             mFloatingBubbleManager.displayAsFloatingWindow();
         }
         if (newFocus == withFocus) {
@@ -319,16 +349,16 @@ public class TermuxFloatView extends LinearLayout {
         if (getWindowToken() != null)
             mWindowManager.removeView(this);
 
-        mFloatingBubbleManager.cleanup();
-        mFloatingBubbleManager = null;
+        if (mFloatingBubbleManager != null) {
+            mFloatingBubbleManager.cleanup();
+            mFloatingBubbleManager = null;
+        }
     }
 
     private void exit() {
         Intent exitIntent = new Intent(getContext(), TermuxFloatService.class).setAction(TermuxConstants.TERMUX_FLOAT_APP.TERMUX_FLOAT_SERVICE.ACTION_STOP_SERVICE);
         getContext().startService(exitIntent);
     }
-
-
 
     public boolean isVisible() {
         return isAttachedToWindow() && isShown();
@@ -354,9 +384,7 @@ public class TermuxFloatView extends LinearLayout {
         return mProperties;
     }
 
-
     public void reloadViewStyling() {
-        // Leaving here for future support for termux-reload-settings
         if (mTermuxFloatSessionClient != null)
             mTermuxFloatSessionClient.onReload();
     }
