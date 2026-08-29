@@ -182,11 +182,27 @@ public class TermuxFloatService extends Service {
 
         mFloatingWindow.initFloatView(this);
 
-        mSession = createTermuxSession(
-                new ExecutionCommand(0, null, null, null, mFloatingWindow.getProperties().getDefaultWorkingDirectory(), ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false), null);
-        if (mSession == null)
-            return false;
-        mFloatingWindow.getTerminalView().attachSession(mSession.getTerminalSession());
+        try {
+            mSession = createTermuxSession(
+                    new ExecutionCommand(0, null, null, null, mFloatingWindow.getProperties().getDefaultWorkingDirectory(), ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false), null);
+            if (mSession != null) {
+                mFloatingWindow.getTerminalView().attachSession(mSession.getTerminalSession());
+            }
+        } catch (Exception e) {
+            Logger.logStackTrace(LOG_TAG, e);
+        }
+
+        if (mSession == null) {
+            try {
+                ExecutionCommand fallbackCommand = new ExecutionCommand(0, "/system/bin/sh", null, null, getFilesDir().getAbsolutePath(), ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false);
+                mSession = createTermuxSession(fallbackCommand, "sh");
+                if (mSession != null) {
+                    mFloatingWindow.getTerminalView().attachSession(mSession.getTerminalSession());
+                }
+            } catch (Exception ex) {
+                Logger.logStackTrace(LOG_TAG, ex);
+            }
+        }
 
         try {
             mFloatingWindow.launchFloatingWindow();

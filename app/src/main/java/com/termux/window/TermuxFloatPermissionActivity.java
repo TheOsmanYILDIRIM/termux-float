@@ -27,7 +27,12 @@ public class TermuxFloatPermissionActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
-            startService(new Intent(this, TermuxFloatService.class));
+            Intent serviceIntent = new Intent(this, TermuxFloatService.class);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
             finish();
         }
     }
